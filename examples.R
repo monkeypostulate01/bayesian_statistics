@@ -3,30 +3,6 @@ library(ggplot2)
 library(cowplot)
 
 
-day_len<-21
-sample_size<-140
-dates<-Sys.Date()-400+seq(0,day_len)
-
-x1<-rbinom(n=day_len+1,size=sample_size,prob =0.25)
-n1<-rep(sample_size,day_len+1)
-
-x2<-rbinom(n=day_len+1,size=sample_size,prob =0.35)
-n2<-rep(sample_size,day_len+1)
-
-
-data1_sales<-data.frame("date"=dates,
-                       "x"=x1,
-                        "n"=n1)
-
-data1_sales$group<-"Control"
-
-
-data2_sales<-data.frame("date"=dates,
-                       "x"=x2,
-                       "n"=n2)
-
-data2_sales$group<-"Variant 1"
-data_sales<-rbind(data1_sales,data2_sales)
 
 
 #########################
@@ -38,11 +14,24 @@ data_sales%>%
   select(date,x,n)%>%
   plot_posterior(alpha=1,beta=1)
 
+
+
+
 data_sales%>%
-  plot_bayesian_trend(col_groups =c("Control"="blue","Variant 1"="green"))
+  plot_bayesian_trend(col_groups =c("Control"="blue","Variant 1"="red"))
 
 
-a<-data_sales%>%
-  save_bayesian_test() 
+mu<-.3
+var<-mu*(1-mu)*0.05
 
- 
+alpha<-((1-mu)/var-1/mu)*mu**2
+beta<-alpha*(1/mu-1)
+c(alpha,beta)
+
+beta_moments_to_parameters(mu,mu*(1-mu)*0.05)
+
+
+
+a<-data_coin%>%
+  save_bayesian_test(alpha =1,bet=1) 
+a

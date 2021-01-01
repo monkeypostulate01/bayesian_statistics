@@ -1,3 +1,25 @@
+# ###############################################
+# Title: Bayesian Statistics functions
+# Author: Abel Camacho Guardian
+# Date: 31/12/2019
+#
+# ##############################################
+# Todo list: 
+# A/B test for multiple groupss
+# A/B test for non-negative continous and discrete distribution
+# A/B test for normal distribution
+
+
+beta_moments_to_parameters<-function(mu,var){
+  
+  output<-c('alpha'=((1-mu)/var-1/mu)*mu**2,
+  'beta'=alpha*(1/mu-1))
+  
+  return(output)
+}
+
+
+
 posterior_beta_dist <- function(alpha, beta, x, n, conf_interval = 0.95) {
   p_low <- (1 - conf_interval) / 2
   p_high <- conf_interval + p_low
@@ -17,6 +39,8 @@ posterior_beta_dist <- function(alpha, beta, x, n, conf_interval = 0.95) {
   results$posterior_beta <- n - x + beta
 
 
+  
+  
   results$conf_interval <- c(
     qbeta(p_low, results$posterior_alph, results$posterior_beta),
     qbeta(p_high, results$posterior_alph, results$posterior_beta)
@@ -68,21 +92,22 @@ plot_bayesian_trend<-function(data_input,
                               alpha=1,
                               beta=1){
   
-  names(data_input)[1:4]<-c('date','x','n','group')
+  names(data_input)[1:4]<-c('date','x_temp','n_temp','group')
+
   
   all_groups<-unique(data_input$group)
   m<-length(all_groups)
   trends_plot<-list()
   for(i in 1:m){
 
-         
     trends_plot[[i]]<-data_input%>%
       filter(group==all_groups[i])%>%
+      mutate(x=cumsum(x_temp),n=cumsum(n_temp))%>%
       select(date,x,n)%>%
       plot_posterior(alpha=alpha,beta=beta)
      n<-dim(trends_plot[[i]])[1]
     
-     
+
     x_values<-c(trends_plot[[i]][1,'date'],
                 trends_plot[[i]][,'date'],
                 trends_plot[[i]][n,'date'],
@@ -124,7 +149,6 @@ plot_bayesian_trend<-function(data_input,
 }
           
           
-
 proportion_bayesian_test<-function(data_input,groups=c("Control","Variant 1"),
                                    n_simulations=100,alternative="two.sided",
                                    alpha=1,beta=1,col_groups=c("blue","red")){
@@ -176,21 +200,30 @@ proportion_bayesian_test<-function(data_input,groups=c("Control","Variant 1"),
   data_output$simulations2<-simul2
   
   
-  if(alternative=='less'){
-    data_output$p_value<-sum(simul1<=simul2)/n_simulations
-  }
-  if(alternative=='greater'){
-    data_output$p_value<-sum(simul1>=simul2)/n_simulations
-  }
-  if(alternative=='two.sided'){
-    data_output$p_value<-1-max(sum(simul1<=simul2)/n_simulations,sum(simul1>=simul2)/n_simulations)
-  }
-  
+  prob_winner<-sum(simul1>=simul2)/n_simulations
+
+    
+  test2_data<-data.frame('x'=c(100*prob_winner,100-100*prob_winner),
+                         'group'=groups)
+  # ########################### 
+  #
+  data_output$plot_winner<-test2_data%>%
+    ggplot()+
+    geom_bar(aes(x=group,y=x,fill=group),stat='identity',alpha=0.3)+
+    geom_text(aes(x=group,y=x+3,label=paste0(round(x),'%')), col="gray40",size=4 )+
+    theme_bottom+
+    theme(legend.position = "none")+
+    coord_flip()+
+    ylab("Probability of being a winner")+
+    xlab("")+
+    ylim(0,103)+
+    scale_fill_manual(values=col_groups,name="")
+    
   
   data_output$plot<-ggplot()+
     geom_density(aes(x=100*simul1,fill=groups[1]),alpha=0.3)+
     geom_density(aes(x=100*simul2,fill=groups[2]),alpha=0.3)+
-    xlab("")+
+    xlab("Posterior probability")+
     ylab("")+
     scale_fill_manual(values=col_groups,name="")+
     theme(axis.text.y=element_text(size=0))+
@@ -228,15 +261,22 @@ save_bayesian_test<-function(data_input,
     )
    plot_p1<-plot_p1_temp$plot+
     ggtitle(title_label)+
-    theme(legend.position = "none")
+    theme(legend.position = "none",
+          axis.text.y=element_text(size=0, color='white'))
   
+   plot_winner<-plot_p1_temp$plot_winner
+   
   plot_p2<-data_input%>%
     plot_bayesian_trend(alpha=alpha,
                         beta=beta)+xlab("Time")+
     theme_bottom
   
+
   
-  final_temp<-plot_grid(plot_p1,plot_p2,
+  final_temp<-plot_grid(plot_p1,plot_winner,
+                        ncol=2)
+  
+  final_temp<-plot_grid(final_temp,plot_p2,
                         ncol=1)
   
 return(final_temp)
